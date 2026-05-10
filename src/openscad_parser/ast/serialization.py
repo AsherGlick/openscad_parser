@@ -184,6 +184,8 @@ def _serialize_position(position: Position) -> dict[str, Any]:
         "origin": position.origin,
         "line": position.line,
         "column": position.column,
+        "offset": position.offset,
+        "end_offset": position.end_offset,
     }
 
 
@@ -277,6 +279,8 @@ def _deserialize_position(data: dict[str, Any]) -> Position:
         origin=data["origin"],
         line=data["line"],
         column=data["column"],
+        offset=data["offset"],
+        end_offset=data["end_offset"],
     )
 
 
@@ -310,7 +314,7 @@ def _deserialize_node(data: dict[str, Any]) -> ASTNode:
         position = _deserialize_position(data["_position"])
     else:
         # Default position if not provided
-        position = Position(origin="<unknown>", line=0, column=0)
+        position = Position(origin="<unknown>", line=0, column=0, offset=0, end_offset=0)
 
     # Get field names from dataclass (excluding position)
     field_names = {f.name for f in dataclasses.fields(node_class) if f.name != "position"}

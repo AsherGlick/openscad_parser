@@ -840,8 +840,8 @@ class TestErrorReporting:
             sys.stdout = buffer
             
             class FakeSourceMap:
-                def get_location(self, _pos):
-                    return Position(origin="test.scad", line=5, column=1)
+                def get_location(self, pos, endpos):
+                    return Position(origin="test.scad", line=5, column=1, offset=pos, end_offset=endpos)
 
                 def get_combined_string(self):
                     return "x = 1;"

@@ -22,23 +22,28 @@ class TestPosition:
     def test_position_edge_cases(self):
         """Test Position with edge cases."""
         # Test with basic position
-        pos = Position(origin="test.scad", line=1, column=1)
+        pos = Position(origin="test.scad", line=1, column=1, offset=0, end_offset=10)
         assert pos.line == 1
         assert pos.column == 1
         assert pos.origin == "test.scad"
+        assert pos.offset == 0
+        assert pos.end_offset == 10
         
         # Test with different values
-        pos = Position(origin="test.scad", line=2, column=5)
+        pos = Position(origin="othertest.scad", line=2, column=5, offset=14, end_offset=400)
         assert pos.line == 2
         assert pos.column == 5
-        
+        assert pos.origin == "othertest.scad"
+        assert pos.offset == 14
+        assert pos.end_offset == 400
+
         # Test with unknown origin
-        pos = Position(origin="<unknown>", line=1, column=1)
+        pos = Position(origin="<unknown>", line=1, column=1, offset=0, end_offset=10)
         assert pos.origin == "<unknown>"
 
     def test_position_repr(self):
         """Test Position __repr__ output."""
-        pos = Position(origin="file.scad", line=3, column=7)
+        pos = Position(origin="file.scad", line=3, column=7, offset=100, end_offset=100)
         assert repr(pos) == "file.scad:3:7"
 
 
@@ -180,11 +185,23 @@ class TestASTBuilderVisitorEdgeCases:
         
         from openscad_parser.ast.nodes import ParameterDeclaration
         
-        name = Identifier(name="test", position=Position("", 1, 1))
-        param1 = ParameterDeclaration(name=Identifier(name="x", position=Position("", 1, 1)), 
-                                     default=None, position=Position("", 1, 1))
-        param2 = ParameterDeclaration(name=Identifier(name="y", position=Position("", 1, 1)), 
-                                     default=None, position=Position("", 1, 1))
+        name = Identifier(name="test", position=Position("", 1, 1, 0, 4))
+        param1 = ParameterDeclaration(
+            name=Identifier(
+                name="x",
+                position=Position("", 1, 1, 0, 1)
+            ), 
+            default=None,
+            position=Position("", 1, 1, 0, 1)
+        )
+        param2 = ParameterDeclaration(
+            name=Identifier(
+                name="y",
+                position=Position("", 1, 1, 0, 1)
+            ), 
+            default=None,
+            position=Position("", 1, 1, 0, 1)
+        )
         
         class MockNode:
             position = 0
@@ -202,13 +219,13 @@ class TestASTBuilderVisitorEdgeCases:
         
         from openscad_parser.ast.nodes import ModularCall
         
-        name = Identifier(name="test", position=Position("", 1, 1))
+        name = Identifier(name="test", position=Position("", 1, 1, 0, 4))
         # Create a proper ModuleInstantiation using ModularCall
         mod_inst = ModularCall(
-            name=Identifier(name="cube", position=Position("", 1, 1)),
+            name=Identifier(name="cube", position=Position("", 1, 1, 0, 4)),
             arguments=[],
             children=[],
-            position=Position("", 1, 1)
+            position=Position("", 1, 1, 0, 6)
         )
         
         class MockNode:
@@ -236,8 +253,8 @@ class TestASTBuilderVisitorEdgeCases:
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
         
-        name = Identifier(name="test", position=Position("", 1, 1))
-        
+        name = Identifier(name="test", position=Position("", 1, 1, 0, 4))
+
         class MockNode:
             position = 0
         
@@ -278,7 +295,7 @@ class TestASTBuilderVisitorEdgeCases:
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
         
-        name = Identifier(name="x", position=Position("", 1, 1))
+        name = Identifier(name="x", position=Position("", 1, 1, 0, 1))
         
         class MockNode:
             position = 0
@@ -330,8 +347,8 @@ class TestASTBuilderVisitorEdgeCases:
         
         from openscad_parser.ast.nodes import NumberLiteral
         
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
         
         class MockNode:
             position = 0
@@ -367,7 +384,7 @@ class TestASTBuilderVisitorEdgeCases:
                 return iter([MockOp("TOK_BINARY_NOT"), MockOp("TOK_LOGICAL_NOT"), MockOp("expr")])
 
         node = MockNode()
-        expr = NumberLiteral(val=1.0, position=Position("", 1, 1))
+        expr = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
         result = visitor.visit_prec_unary(node, [expr])
         assert isinstance(result, BitwiseNotOp)
         assert isinstance(result.expr, LogicalNotOp)
@@ -383,7 +400,7 @@ class TestASTBuilderVisitorEdgeCases:
                 raise TypeError("Cannot iterate")
 
         node = MockNode()
-        expr = NumberLiteral(val=1.0, position=Position("", 1, 1))
+        expr = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
         result = visitor.visit_prec_unary(node, ["-", expr])
         assert isinstance(result, UnaryMinusOp)
 
@@ -396,8 +413,8 @@ class TestASTBuilderVisitorEdgeCases:
             position = 0
 
         node = MockNode()
-        left = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        right = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        left = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        right = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
         result = visitor.visit_prec_multiplication(node, [left, "?", right])
         assert isinstance(result, MultiplicationOp)
 
@@ -470,7 +487,7 @@ class TestASTBuilderVisitorEdgeCases:
         """Test visit_* name rules return the first child."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        ident = Identifier(name="test", position=Position("", 1, 1))
+        ident = Identifier(name="test", position=Position("", 1, 1, 0, 4))
 
         assert visitor.visit_module_name(None, [ident]) is ident
         assert visitor.visit_function_name(None, [ident]) is ident
@@ -484,14 +501,14 @@ class TestASTBuilderVisitorEdgeCases:
         """Test visit_call_expr/lookup_expr/member_expr tuple markers."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        arg1 = PositionalArgument(expr=NumberLiteral(val=1.0, position=Position("", 1, 1)), position=Position("", 1, 1))
-        arg2 = PositionalArgument(expr=NumberLiteral(val=2.0, position=Position("", 1, 1)), position=Position("", 1, 1))
+        arg1 = PositionalArgument(expr=NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)), position=Position("", 1, 1, 0, 3))
+        arg2 = PositionalArgument(expr=NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3)), position=Position("", 1, 1, 0, 3))
 
         assert visitor.visit_call_expr(None, [arg1, arg2]) == ("call", [arg1, arg2])
-        index_expr = NumberLiteral(val=1.0, position=Position("", 1, 1))
+        index_expr = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
         assert visitor.visit_lookup_expr(None, [index_expr]) == ("index", index_expr)
         assert visitor.visit_lookup_expr(None, []) == ("index", None)
-        member_ident = Identifier(name="x", position=Position("", 1, 1))
+        member_ident = Identifier(name="x", position=Position("", 1, 1, 0, 1))
         assert visitor.visit_member_expr(None, [member_ident]) == ("member", member_ident)
         assert visitor.visit_member_expr(None, []) == ("member", None)
 
@@ -499,7 +516,7 @@ class TestASTBuilderVisitorEdgeCases:
         """Test visit_vector_expr normalizes elements to list."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        elem = NumberLiteral(val=1.0, position=Position("", 1, 1))
+        elem = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
         result = visitor.visit_vector_expr(None, [elem])
         assert isinstance(result, ListComprehension)
         assert result.elements == [elem]
@@ -512,17 +529,17 @@ class TestASTBuilderVisitorEdgeCases:
         """Test modular_* methods normalize assignment/argument lists."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1)),
-                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1)),
-                               position=Position("", 1, 1))
-        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1)),
-                           arguments=[], children=[], position=Position("", 1, 1))
+        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1, 0, 1)),
+                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)),
+                               position=Position("", 1, 1, 0, 5))
+        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1, 0, 4)),
+                           arguments=[], children=[], position=Position("", 1, 1, 0, 6))
 
         mod_for = visitor.visit_modular_for(None, [assignment, call])
         assert isinstance(mod_for, ModularFor)
         assert mod_for.assignments == [assignment]
 
-        mod_c_for = visitor.visit_modular_c_for(None, [assignment, NumberLiteral(val=1.0, position=Position("", 1, 1)), assignment, call])
+        mod_c_for = visitor.visit_modular_c_for(None, [assignment, NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)), assignment, call])
         assert isinstance(mod_c_for, ModularCFor)
         assert mod_c_for.initial == [assignment]
         assert mod_c_for.increment == [assignment]
@@ -532,7 +549,7 @@ class TestASTBuilderVisitorEdgeCases:
         assert mod_let.assignments == [assignment]
         assert mod_let.children == [call]
 
-        arg = PositionalArgument(expr=NumberLiteral(val=2.0, position=Position("", 1, 1)), position=Position("", 1, 1))
+        arg = PositionalArgument(expr=NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3)), position=Position("", 1, 1, 0, 3))
         mod_echo = visitor.visit_modular_echo(None, [arg, call])
         assert isinstance(mod_echo, ModularEcho)
         assert mod_echo.arguments == [arg]
@@ -547,11 +564,11 @@ class TestASTBuilderVisitorEdgeCases:
         """Test modular_intersection_for wraps assignment into list."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1)),
-                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1)),
-                               position=Position("", 1, 1))
-        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1)),
-                           arguments=[], children=[], position=Position("", 1, 1))
+        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1, 0, 1)),
+                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)),
+                               position=Position("", 1, 1, 0, 5))
+        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1, 0, 4)),
+                           arguments=[], children=[], position=Position("", 1, 1, 0, 6))
 
         mod_for = visitor.visit_modular_intersection_for(None, [assignment, call])
         assert isinstance(mod_for, ModularIntersectionFor)
@@ -561,12 +578,12 @@ class TestASTBuilderVisitorEdgeCases:
         """Test modular_intersection_c_for wraps init/increment into lists."""
         parser = getOpenSCADParser()
         visitor = ASTBuilderVisitor(parser)
-        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1)),
-                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1)),
-                               position=Position("", 1, 1))
-        condition = BooleanLiteral(val=True, position=Position("", 1, 1))
-        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1)),
-                           arguments=[], children=[], position=Position("", 1, 1))
+        assignment = Assignment(name=Identifier(name="i", position=Position("", 1, 1, 0, 1)),
+                               expr=NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)),
+                               position=Position("", 1, 1, 0, 5))
+        condition = BooleanLiteral(val=True, position=Position("", 1, 1, 0, 4))
+        call = ModularCall(name=Identifier(name="cube", position=Position("", 1, 1, 0, 4)),
+                           arguments=[], children=[], position=Position("", 1, 1, 0, 6))
 
         mod_c_for = visitor.visit_modular_intersection_c_for(
             None, [assignment, condition, assignment, call]
@@ -749,8 +766,8 @@ class TestASTBuilderVisitorEdgeCases:
                 raise TypeError("Cannot iterate")
         
         node = MockNode()
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
         
         result = visitor.visit_prec_equality(node, [expr1, expr2])
         assert isinstance(result, EqualityOp)
@@ -768,8 +785,8 @@ class TestASTBuilderVisitorEdgeCases:
                 raise TypeError("Cannot iterate")
         
         node = MockNode()
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
         
         result = visitor.visit_prec_comparison(node, [expr1, expr2])
         assert isinstance(result, LessThanOp)
@@ -787,13 +804,13 @@ class TestASTBuilderVisitorEdgeCases:
         class MockNode:
             position = 0
             def __iter__(self):
-                return iter([NumberLiteral(val=1.0, position=Position("", 1, 1)), 
+                return iter([NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)), 
                            MockOperator(),
-                           NumberLiteral(val=2.0, position=Position("", 1, 1))])
+                           NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))])
         
         node = MockNode()
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
         
         result = visitor.visit_prec_equality(node, [expr1, expr2])
         # Should default to equality
@@ -812,13 +829,13 @@ class TestASTBuilderVisitorEdgeCases:
         class MockNode:
             position = 0
             def __iter__(self):
-                return iter([NumberLiteral(val=1.0, position=Position("", 1, 1)), 
+                return iter([NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3)), 
                            MockOperator(),
-                           NumberLiteral(val=2.0, position=Position("", 1, 1))])
+                           NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))])
         
         node = MockNode()
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0 ,3))
         
         result = visitor.visit_prec_comparison(node, [expr1, expr2])
         # Should default to less than
@@ -831,9 +848,9 @@ class TestASTBuilderVisitorEdgeCases:
         
         from openscad_parser.ast.nodes import NumberLiteral, BitwiseOrOp
         
-        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1))
-        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1))
-        expr3 = NumberLiteral(val=3.0, position=Position("", 1, 1))
+        expr1 = NumberLiteral(val=1.0, position=Position("", 1, 1, 0, 3))
+        expr2 = NumberLiteral(val=2.0, position=Position("", 1, 1, 0, 3))
+        expr3 = NumberLiteral(val=3.0, position=Position("", 1, 1, 0, 3))
         
         class MockNode:
             position = 0

@@ -23,12 +23,12 @@ class TestSourceMapBasic:
         source_map = SourceMap()
         source_map.add_origin("main.scad", "x = 5;\n")
         
-        loc = source_map.get_location(0)
+        loc = source_map.get_location(0, 1)
         assert loc.origin == "main.scad"
         assert loc.line == 1
         assert loc.column == 1
         
-        loc = source_map.get_location(4)
+        loc = source_map.get_location(4, 5)
         assert loc.origin == "main.scad"
         assert loc.line == 1
         assert loc.column == 5
@@ -44,7 +44,7 @@ class TestSourceMapBasic:
         assert "y = 10;\n" in combined
         
         # Check locations
-        loc = source_map.get_location(8)
+        loc = source_map.get_location(8, 9)
         assert loc.origin == "lib.scad"
 
 
@@ -287,7 +287,7 @@ class TestProcessIncludes:
             source_map = process_includes(source_map, main_file)
             
             # Check that we can still get locations
-            loc = source_map.get_location(0)
+            loc = source_map.get_location(0, 0)
             assert loc.origin == main_file
             assert loc.line == 1
             assert loc.column == 1
@@ -296,7 +296,7 @@ class TestProcessIncludes:
             result = source_map.get_combined_string()
             lib_pos = result.find("z = 20")
             if lib_pos >= 0:
-                loc = source_map.get_location(lib_pos)
+                loc = source_map.get_location(lib_pos, lib_pos + 6)
                 assert loc.origin == lib_file
 
     def test_include_with_whitespace(self):
@@ -480,7 +480,7 @@ class TestSourceMapEdgeCases:
         source_map = SourceMap()
         source_map.add_origin("file.scad", "x = 1;\n")
         
-        loc = source_map.get_location(-1)
+        loc = source_map.get_location(-1, -1)
         assert loc.origin == "file.scad"
         assert loc.line == 1
         assert loc.column == 1
@@ -488,7 +488,7 @@ class TestSourceMapEdgeCases:
     def test_get_location_no_segments(self):
         """Test get_location when no segments exist."""
         source_map = SourceMap()
-        loc = source_map.get_location(0)
+        loc = source_map.get_location(0, 0)
         assert loc.origin == ""
         assert loc.line == 1
         assert loc.column == 1
@@ -511,7 +511,7 @@ class TestSourceMapEdgeCases:
         """Test _calculate_location_in_segment with negative offset."""
         source_map = SourceMap()
         source_map.add_origin("file.scad", "x = 1;\n")
-        loc = source_map.get_location(0)
+        loc = source_map.get_location(0, 0)
         # This internally uses _calculate_location_in_segment
         assert loc.column >= 1
 
@@ -520,7 +520,7 @@ class TestSourceMapEdgeCases:
         source_map = SourceMap()
         source_map.add_origin("file.scad", "x = 1;\n")
         # Get location at position beyond content
-        loc = source_map.get_location(100)
+        loc = source_map.get_location(100, 100)
         assert loc.origin == "file.scad"
 
     def test_calculate_location_in_segment_newline_offsets(self):
@@ -528,10 +528,12 @@ class TestSourceMapEdgeCases:
         source_map = SourceMap()
         source_map.add_origin("file.scad", "a\nb")
 
-        loc = source_map.get_location(2)  # Points at "b"
+        loc = source_map.get_location(2, 3)  # Points at "b"
         assert loc.origin == "file.scad"
         assert loc.line == 2
         assert loc.column == 1
+
+    # TODO: INspect all the `get_location` tests to see where my new tests should go
 
     def test_create_source_map_from_origins_with_insert_positions(self):
         """Test create_source_map_from_origins with insert_positions."""
@@ -629,11 +631,11 @@ class TestSourceMapEdgeCases:
         source_map.add_origin("file.scad", "x = 1;\n")
         
         # Test with offset exactly at segment boundary
-        loc = source_map.get_location(7)  # At end of "x = 1;\n"
+        loc = source_map.get_location(7, 7)  # At end of "x = 1;\n"
         assert loc.origin == "file.scad"
         
         # Test with offset beyond segment (should clamp)
-        loc = source_map.get_location(100)
+        loc = source_map.get_location(100, 100)
         assert loc.origin == "file.scad"
 
     def test_find_segment_last_segment_exact_boundary(self):

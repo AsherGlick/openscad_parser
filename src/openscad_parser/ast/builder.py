@@ -18,6 +18,8 @@ class Position:
     origin: str
     line: int
     column: int
+    offset: int
+    end_offset: int
 
     def __repr__(self):
         return f"{self.origin}:{self.line}:{self.column}"
@@ -152,10 +154,15 @@ class ASTBuilderVisitor(PTNodeVisitor):
         else:
             char_pos = 0
         
+        if hasattr(node, 'position_end'):
+            end_char_pos = node.position_end
+        else:
+            end_char_pos = 0
+
         # Use SourceMap if available to map position back to original origin
         if hasattr(self, 'source_map') and self.source_map.get_segments():
-            location = self.source_map.get_location(char_pos)
-            return Position(origin=location.origin, line=location.line, column=location.column)
+            location = self.source_map.get_location(char_pos, end_char_pos)
+            return Position(origin=location.origin, line=location.line, column=location.column, offset=location.offset, end_offset=location.end_offset)
         else:
             # Fallback: calculate line/column from character position
             input_str = self.parser.input if hasattr(self.parser, 'input') else ""
@@ -168,7 +175,7 @@ class ASTBuilderVisitor(PTNodeVisitor):
                 last_newline = text_before.rfind('\n')
                 column = char_pos - last_newline  # 1-indexed
             
-            return Position(origin=self.file if self.file else "<unknown>", line=line, column=column)
+            return Position(origin=self.file if self.file else "<unknown>", line=line, column=column, offset=char_pos, end_offset=end_char_pos)
 
 
     # -- Basic Tokens --

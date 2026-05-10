@@ -30,9 +30,9 @@ from openscad_parser.ast.nodes import (
 )
 
 
-def _pos(line=1, column=1):
+def _pos():
     """Helper to create a Position for testing."""
-    return Position(origin="<test>", line=line, column=column)
+    return Position(origin="<test>", line=1, column=1, offset=0, end_offset=10)
 
 
 class TestAstToDict:
@@ -158,7 +158,7 @@ class TestAstFromDict:
         """Test deserializing a single node."""
         data = {
             "_type": "NumberLiteral",
-            "_position": {"origin": "<test>", "line": 1, "column": 1},
+            "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 10},
             "val": 42.0,
         }
         node = ast_from_dict(data)
@@ -170,8 +170,8 @@ class TestAstFromDict:
     def test_list_of_nodes(self):
         """Test deserializing a list of nodes."""
         data = [
-            {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1}, "val": 1.0},
-            {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1}, "val": 2.0},
+            {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 3}, "val": 1.0},
+            {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 3}, "val": 2.0},
         ]
         nodes = ast_from_dict(data)
 
@@ -202,9 +202,9 @@ class TestAstFromDict:
         """Test deserializing nested structures."""
         data = {
             "_type": "AdditionOp",
-            "_position": {"origin": "<test>", "line": 1, "column": 1},
-            "left": {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1}, "val": 1.0},
-            "right": {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 3}, "val": 2.0},
+            "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 3},
+            "left": {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 1}, "val": 1.0},
+            "right": {"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 3, "offset": 2, "end_offset": 3}, "val": 2.0},
         }
         node = ast_from_dict(data)
 
@@ -234,7 +234,7 @@ class TestAstFromJson:
 
     def test_basic_deserialization(self):
         """Test basic JSON deserialization."""
-        json_str = '{"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1}, "val": 42.0}'
+        json_str = '{"_type": "NumberLiteral", "_position": {"origin": "<test>", "line": 1, "column": 1, "offset": 0, "end_offset": 4}, "val": 42.0}'
         node = ast_from_json(json_str)
 
         assert isinstance(node, NumberLiteral)

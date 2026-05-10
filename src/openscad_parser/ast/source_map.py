@@ -9,6 +9,8 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Optional, Tuple, TYPE_CHECKING
+from typing import TypedDict, List
+
 
 if TYPE_CHECKING:
     from .builder import Position
@@ -28,6 +30,7 @@ class SourceSegment:
     origin: str
     start_line: int
     start_column: int
+    start_offset: int
     content: str
     combined_start: int  # Position in combined string where this segment starts
 
@@ -55,7 +58,7 @@ class SourceMap:
         self._combined_string_dirty: bool = True
     
     def add_origin(self, origin: str, content: str, insert_at: Optional[int] = None,
-                   start_line: int = 1, start_column: int = 1, replace_length: int = 0,
+                   start_line: int = 1, start_column: int = 1, start_offset: int = 0, replace_length: int = 0,
                    strip_trailing_newline: bool = False) -> int:
         """Add a source origin's content to the source map.
         
@@ -95,6 +98,7 @@ class SourceMap:
             origin=origin,
             start_line=start_line,
             start_column=start_column,
+            start_offset=start_offset,
             content=content,
             combined_start=insert_at
         )
@@ -169,6 +173,7 @@ class SourceMap:
                         origin=segment.origin,
                         start_line=segment.start_line,
                         start_column=segment.start_column,
+                        start_offset=segment.start_offset + replace_end_in_segment,
                         content=after_content,
                         combined_start=start_pos  # After replacement, this will be adjusted
                     )
@@ -264,7 +269,7 @@ class SourceMap:
         self._combined_string = ''.join(parts)
         self._combined_string_dirty = False
     
-    def get_location(self, position: int):
+    def get_location(self, position: int, end_position: int) -> "Position":
         """Get the original source location for a position in the combined string.
         
         Args:
@@ -277,21 +282,30 @@ class SourceMap:
         
         if position < 0:
             position = 0
+
+        if end_position is None or end_position < position:
+            end_position = position
         
         # Find the segment containing this position
         segment = self._find_segment(position)
-        
+        end_segment = self._find_segment(position)
+
+        if segment != end_segment:
+            raise ValueError(f"Cross-source location requested {segment} {end_segment}")
+            # TODO: We need a test that triggers segment to be a value but end_segment to be None
+
         if segment is None:
             # Position is beyond all segments, return location from last segment
             if self._segments:
                 last_segment = max(self._segments, key=lambda s: s.combined_start + len(s.content))
-                return self._calculate_location_in_segment(last_segment, len(last_segment.content))
+                return self._calculate_location_in_segment(last_segment, len(last_segment.content), len(last_segment.content))
             else:
-                return Position(origin="", line=1, column=1)
+                return Position(origin="", line=1, column=1, offset=0, end_offset=0)
         
         # Calculate the position within the segment
         segment_offset = position - segment.combined_start
-        return self._calculate_location_in_segment(segment, segment_offset)
+        segment_end_offset = end_position - segment.combined_start
+        return self._calculate_location_in_segment(segment, segment_offset, segment_end_offset)
     
     def _find_segment(self, position: int) -> Optional[SourceSegment]:
         """Find the segment containing the given position.
@@ -324,7 +338,7 @@ class SourceMap:
         
         return None
     
-    def _calculate_location_in_segment(self, segment: SourceSegment, offset: int):
+    def _calculate_location_in_segment(self, segment: SourceSegment, offset: int, end_offset: int) -> "Position":
         """Calculate the source location for an offset within a segment.
         
         Args:
@@ -340,14 +354,14 @@ class SourceMap:
             offset = 0  # pragma: no cover
         if offset > len(segment.content):
             offset = len(segment.content)  # pragma: no cover
-        
+
         # Count lines in the content up to the offset
         content_before = segment.content[:offset]
         line_count = content_before.count('\n')
-        
+
         # Calculate line number
         line_number = segment.start_line + line_count
-        
+
         # Calculate column number
         if line_count == 0:
             # Same line as start
@@ -360,9 +374,11 @@ class SourceMap:
         return Position(
             origin=segment.origin,
             line=line_number,
-            column=column_number
+            column=column_number,
+            offset=segment.start_offset + offset,
+            end_offset=segment.start_offset + end_offset,
         )
-    
+
     def get_segments(self) -> list[SourceSegment]:
         """Get all source segments.
         
@@ -471,7 +487,7 @@ def process_includes(source_map: SourceMap, current_file: str = "",
                 raise IOError(f"Error reading included file '{lib_file}': {e}")
             
             # Get the origin of the segment containing this position
-            location = source_map.get_location(position)
+            location = source_map.get_location(position, position + length)
             origin = location.origin
             
             # Replace the include statement with the file content
@@ -496,7 +512,13 @@ def process_includes(source_map: SourceMap, current_file: str = "",
     return source_map
 
 
-def _find_valid_includes(code: str) -> list[dict]:
+class ValidInclude(TypedDict):
+    position: int
+    length: int
+    filename: str
+
+
+def _find_valid_includes(code: str) -> List[ValidInclude]:
     """Find all valid include statements in code, excluding those in strings or comments.
     
     Args:
@@ -505,7 +527,7 @@ def _find_valid_includes(code: str) -> list[dict]:
     Returns:
         List of dictionaries with 'position', 'length', and 'filename' keys
     """
-    includes = []
+    includes: List[ValidInclude] = []
     i = 0
     in_string = False
     string_char = None

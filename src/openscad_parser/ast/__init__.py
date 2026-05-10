@@ -177,7 +177,7 @@ def parse_ast(parser, code, file="", source_map=None) -> list[ASTNode] | None:
         
         # Use source_map to get accurate error location if available
         if source_map is not None:
-            location = source_map.get_location(char_pos)
+            location = source_map.get_location(char_pos, char_pos)
             error_origin = location.origin
             error_line = location.line
             error_column = location.column

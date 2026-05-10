@@ -72,7 +72,7 @@ from openscad_parser.ast.nodes import (
 
 
 def _pos():
-    return Position(origin="<test>", line=1, column=1)
+    return Position(origin="<test>", line=1, column=1, offset=0, end_offset=10)
 
 
 def _ident(name: str):
